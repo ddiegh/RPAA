@@ -89,7 +89,7 @@ class DBSCAN:
         for h, v in enumerate(d):
             puntos = 0 
             for dis in v:
-                if dis < self.eps:
+                if dis <= self.eps:
                     puntos += 1 
             puntos_eps[h] = puntos 
 
@@ -98,13 +98,17 @@ class DBSCAN:
         puntos = np.zeros(n) 
         for i, v in enumerate(puntos_eps):
             if v >= self.minpts: 
-                puntos[i] = 1
-            elif v < self.minpts: #verificar si es frontera de algun centro
-                contador = 0
+                puntos[i] = 1  #nucleo
+
+            else:
+                es_frontera = False 
                 for x in range(n):
-                    if (d[i][x] < self.eps) and (i != x):
-                        contador += 1
-                if contador > 0:
+                    if (d[i][x] <= self.eps) and (i != x):
+                        if puntos_eps[x] >= self.minpts:
+                            es_frontera = True
+                            break
+                
+                if es_frontera:
                     puntos[i] = 0
                 else:
                     puntos[i] = -1
@@ -124,28 +128,41 @@ class DBSCAN:
             centro_act = centros[a]
 
             #calcular cuantos centros estan cerca del centro actual 
-            centro_cerca = []
-            for centro in centros:
-                if np.linalg.norm(X[centro[0]] - X[centro_act[0]]) <= self.eps:
-                    centro_cerca.append(centro) 
+            def buscar_centros(c):
+                centro_cerca = []
+                for centro in centros:
+                    if d[centro[0]][c[0]] <= self.eps:
+                        centro_cerca.append(centro) 
+                return centro_cerca
+            
+            centro_cerca = buscar_centros(centro_act)
+            
+            #calculamos los centros conectados a los centros cerca del centro actual
+            i = 0
+            while i < len(centro_cerca):
+                c_actual = centro_cerca[i]
+                nuevos_centros = buscar_centros(c_actual)
+    
+                for elem in nuevos_centros:
+                    if elem not in centro_cerca:
+                        centro_cerca.append(elem)
+                i += 1
 
             #metemos todos los puntos densos en el mismo cluster
             cluster = []
             while len(centro_cerca) > 0:
-                centro = centro_cerca[0]
+                centro = centro_cerca.pop(0)  #borramos el centro actual de todos los conectados y lo agregamos al cluster
                 cluster.append(centro[0])
-                for x in fronteras:
-                    if np.linalg.norm(X[x[0]]-X[centro[0]]) <= self.eps:
+                for x in fronteras[:]: #agregamos los puntos frontera al cluster
+                    if d[x[0]][centro[0]] <= self.eps:
                         cluster.append(x[0])
                         fronteras.remove(x)
-                centro_cerca.pop(0)
-                centros.remove(centro)
+
+                if centro in centros:
+                    centros.remove(centro)  #asegurarnos de que el centro ya no este 
             Clusteres.append(cluster)
 
         return Clusteres
-
-
-
 
 
 
