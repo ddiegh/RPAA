@@ -1,4 +1,4 @@
-from kmeans import Kmeans
+from implementaciones.clustering.models import Kmeans
 import matplotlib.pyplot as plt
 
 #cargar la imagen y normalizarla 

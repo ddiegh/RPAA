@@ -1,3 +1,8 @@
+'''
+Archivo para la implementacion de algoritmos de clustering.
+Kmeans, DBSCAN usando solo numpy.
+'''
+
 import numpy as np 
 
 class Kmeans:
@@ -75,6 +80,7 @@ class DBSCAN:
     def __init__(self, eps: float, minpts: int):
         self.eps = eps 
         self.minpts = minpts
+        self.labels_ = None
 
     def fit(self, X):
         #calcular la distancia entre cada punto
@@ -161,8 +167,15 @@ class DBSCAN:
                 if centro in centros:
                     centros.remove(centro)  #asegurarnos de que el centro ya no este 
             Clusteres.append(cluster)
+        
+        # iniciamos todo con ruido
+        labels = np.full(n, -1)
 
-        return Clusteres
+        for j, cluster in enumerate(Clusteres):
+            labels[cluster] = j
+
+        self.labels_ = labels
+        return self 
 
 
 
@@ -190,7 +203,8 @@ def main():
 ])
 
     modelo = DBSCAN(eps=1.0, minpts=3)
-    print(modelo.fit(X))
+    modelo.fit(X)
+    print(modelo.labels_)
 
 if __name__ == '__main__':
     main()
