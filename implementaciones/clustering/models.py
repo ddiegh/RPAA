@@ -4,6 +4,7 @@ Kmeans, DBSCAN usando solo numpy.
 '''
 
 import numpy as np 
+from scipy.stats import multivariate_normal
 
 class Kmeans:
     def __init__(self, k:int, max_iter:int = 100, tol:int = 1e-6, seed = 42):
@@ -177,6 +178,45 @@ class DBSCAN:
         self.labels_ = labels
         return self 
 
+class GaussianMixture:
+    def __init__(self, n_clusters: int):
+        self.k_clusters = n_clusters
+    
+    def fit(self, X):
+        #optimizar la log similitud 
+        k = self.k_clusters
+        dim = len(X[0])  #dimension del espacio 
+        n = len(X)
+        
+        def evaluar_logsim(medias, covarianzas, ponderaciones):
+            suma = 0
+            k = len(medias)
+
+            for x in X:
+                suma_i = 0
+
+                for j in range(k):
+                    Nj = multivariate_normal(mean=medias[j], cov=covarianzas[j])
+                    suma_i += ponderaciones[j] * np.exp(Nj.logpdf(x))
+
+                suma += np.log(suma_i)
+
+            return suma
+
+
+        medias = []
+        sigmas = []
+        pond = []
+        for i in range(k):
+            medias.append(np.random.random(size=dim))
+            A = np.random.random(size=(dim, dim))
+            At = A.T
+            sigmas.append(A@At)
+            pond.append(np.random.random(size=dim))
+        
+
+
+        return evaluar_logsim(medias, sigmas, pond)
 
 
 def main():
@@ -204,7 +244,21 @@ def main():
 
     modelo = DBSCAN(eps=1.0, minpts=3)
     modelo.fit(X)
-    print(modelo.labels_)
+    labels = modelo.labels_
+    sigma_k = np.array([[1.0, 0.5],
+                    [0.5, 2.0]])
+    mu_k = np.array([0.0, 0.0])
+    Y = np.array([
+    [1.0, 2.0],
+    [1.5, 1.8],
+    [8.0, 8.0],
+    [8.5, 7.6],
+    [5.0, 5.0]  # Punto equidistante para evaluar solapamiento
+    ])
+    m = GaussianMixture(3)
+    print(m.fit(Y))
+
+
 
 if __name__ == '__main__':
     main()
