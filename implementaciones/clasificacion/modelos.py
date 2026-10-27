@@ -66,6 +66,9 @@ class LDA:
     def __init__(self):
         self.X = None
         self.y = None
+        self.pesos = None 
+        self.covarianza = None
+        self.centroides = None
 
 
     def fit(self, X, y):
@@ -78,16 +81,89 @@ class LDA:
         PI = contadores / N
 
         #encontramos los puntos en cada clase y obtenemos la media (centroides)
-        centroides = np.zeros((len(PI), 2))
+        centroides = np.zeros((len(PI), self.X.shape[1]))
         for i, id in enumerate(np.unique(y)):
             mascara = y == id
-            centroides[i][0], centroides[i][1] = np.mean(self.X[mascara], axis = 0)
+            centroides[i] = np.mean(self.X[mascara], axis = 0)
 
+        #covarianzas 
+        #primero obtenemos la covarianza de cada gaussiana 
+        covarianzas = []
+        for i, clase in enumerate(clases):
+            #vectores de la clase
+            mascara = y == clase
+            vec = self.X[mascara] 
+
+            #calculamos la multiplicacion de cada vector y al final sumamos las matrices
+            trans = []
+            for v in vec:
+                mul = np.outer( v-centroides[i], v-centroides[i])  #calcula la multiplicacion de un vector x x^t
+                trans.append(mul)
+            suma = np.sum(trans, axis = 0)
+
+            #formula de cada covarianza 
+            cov = ( 1 / (contadores[i] - 1) ) * (suma)
+            covarianzas.append(cov)
+
+        #calculamos la covarianza compartida 
+        covarianzas = np.array(covarianzas)
+        covarianza = np.sum( PI * covarianzas, axis = 0)
+
+        self.pesos = PI
+        self.centroides = centroides 
+        self.covarianza = covarianza
+
+        return self 
+
+
+class QDA:
+    def __init__(self):
+        self.X = None
+        self.y = None
+        self.pesos = None
+        self.centroides = None
+        self.covarianzas = None
+
+
+    def fit(self, X, y):
+        self.X = np.array(X)
+        self.y = np.array(y)
+
+        N = len(self.y) #total de datos
+        clases, contadores = np.unique(self.y, return_counts=True)  #cuantos elementos tiene cada clase
         
+        PI = contadores / N
 
-        return centroides
+        #encontramos los puntos en cada clase y obtenemos la media (centroides)
+        centroides = np.zeros((len(PI), self.X.shape[1]))
+        for i, id in enumerate(np.unique(y)):
+            mascara = y == id
+            centroides[i] = np.mean(self.X[mascara], axis = 0)
 
 
+        #calculamos la covarianza de cada clase 
+        covarianzas = []
+        for i, clase in enumerate(clases):
+            #vectores de la clase
+            mascara = y == clase
+            vec = self.X[mascara] 
+
+            #calculamos la multiplicacion de cada vector y al final sumamos las matrices
+            trans = []
+            for v in vec:
+                mul = np.outer( v-centroides[i], v-centroides[i])  #calcula la multiplicacion de un vector x x^t
+                trans.append(mul)
+            suma = np.sum(trans, axis = 0)
+
+            #formula de cada covarianza 
+            cov = ( 1 / (contadores[i] - 1 ) ) * (suma)
+            covarianzas.append(cov)
+
+        self.pesos = PI
+        self.centroides = centroides
+        self.covarianzas = covarianzas
+
+        return self
 
 
 def prueba_NC():
@@ -106,7 +182,23 @@ def prueba_NC():
 
 
 
+def prueba_QDA():
+    X = np.array([
+    [2, 2],  # Clase 0
+    [4, 4],  # Clase 0
+    [6, 6],  # Clase 0
+    [2, 6],  # Clase 1
+    [4, 4],  # Clase 1
+    [6, 2]   # Clase 1
+    ], dtype=float)
 
+    # Vector de etiquetas (y)
+    y = np.array([0, 0, 0, 1, 1, 1])
+
+    qda = LDA()
+    print(qda.fit(X, y))
+
+    
 def prueba_KNN():
     X_train = np.array([
         [1.0, 1.0], [1.0, 2.0], [2.0, 1.0], [2.0, 2.0], 
@@ -122,6 +214,6 @@ def prueba_KNN():
     print(knn.predecir(x))
 
 def main():
-    prueba_NC()
+    prueba_QDA()
 if __name__ == '__main__':
     main()
