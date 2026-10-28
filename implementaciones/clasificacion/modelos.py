@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import multivariate_normal
 
 class KNN:
     def __init__(self, k: int):
@@ -13,7 +14,7 @@ class KNN:
         self.clases = np.unique(y)
         return self
 
-    def predecir(self, x):
+    def predict(self, x):
         #distancia a todos los puntos
         distancias = np.linalg.norm(self.X - x, axis = 1)
 
@@ -55,7 +56,7 @@ class NearestCentroid:
         self.centroides = centroides
         return self
     
-    def predecir(self, x):
+    def predict(self, x):
         #calculamos la distancia a todos los centroides y asignamos el minimo
         distancias = np.linalg.norm(self.centroides - x, axis=1)
         etiqueta = np.argmin(distancias) + 1
@@ -69,6 +70,7 @@ class LDA:
         self.pesos = None 
         self.covarianza = None
         self.centroides = None
+        self.clases = None
 
 
     def fit(self, X, y):
@@ -79,16 +81,17 @@ class LDA:
         clases, contadores = np.unique(self.y, return_counts=True)  #cuantos elementos tiene cada clase
         
         PI = contadores / N
+        K = len(clases)
 
         #encontramos los puntos en cada clase y obtenemos la media (centroides)
         centroides = np.zeros((len(PI), self.X.shape[1]))
-        for i, id in enumerate(np.unique(y)):
+        for i, id in enumerate(clases):
             mascara = y == id
             centroides[i] = np.mean(self.X[mascara], axis = 0)
 
         #covarianzas 
         #primero obtenemos la covarianza de cada gaussiana 
-        covarianzas = []
+        matriz_suma_total = np.zeros((self.X.shape[1], self.X.shape[1]))
         for i, clase in enumerate(clases):
             #vectores de la clase
             mascara = y == clase
@@ -99,21 +102,38 @@ class LDA:
             for v in vec:
                 mul = np.outer( v-centroides[i], v-centroides[i])  #calcula la multiplicacion de un vector x x^t
                 trans.append(mul)
-            suma = np.sum(trans, axis = 0)
+            suma_clase = np.sum(trans, axis = 0)
 
-            #formula de cada covarianza 
-            cov = ( 1 / (contadores[i] - 1) ) * (suma)
-            covarianzas.append(cov)
+            matriz_suma_total += suma_clase
 
-        #calculamos la covarianza compartida 
-        covarianzas = np.array(covarianzas)
-        covarianza = np.sum( PI * covarianzas, axis = 0)
+        covarianza_agrupada = matriz_suma_total / (N - K)
+
 
         self.pesos = PI
         self.centroides = centroides 
-        self.covarianza = covarianza
+        self.covarianza = covarianza_agrupada
+        self.clases = clases
 
         return self 
+    
+    def predict(self, x):
+        '''
+        Predice el valor de un nuevo punto.
+        Solo funciona para un punto, no para vectores de puntos.
+        '''
+        scores = np.zeros(len(self.centroides))
+
+        inv = np.linalg.inv(self.covarianza)  #inversa compartida
+        # a cada clase obtenemos la recta evaluada en x y finalmente devolvemos la mayor
+        for i in range(len(scores)):
+            m = self.centroides[i]
+            Wk = (inv @ m).T
+            Wko = -0.5 * (m @ (inv @ m)) + np.log(self.pesos[i])
+            scores[i] = Wk @ x + Wko 
+
+        indice = np.argmax(scores)
+
+        return self.clases[indice]
 
 
 class QDA:
@@ -123,6 +143,7 @@ class QDA:
         self.pesos = None
         self.centroides = None
         self.covarianzas = None
+        self.clases = None
 
 
     def fit(self, X, y):
@@ -136,7 +157,7 @@ class QDA:
 
         #encontramos los puntos en cada clase y obtenemos la media (centroides)
         centroides = np.zeros((len(PI), self.X.shape[1]))
-        for i, id in enumerate(np.unique(y)):
+        for i, id in enumerate(clases):
             mascara = y == id
             centroides[i] = np.mean(self.X[mascara], axis = 0)
 
@@ -162,8 +183,26 @@ class QDA:
         self.pesos = PI
         self.centroides = centroides
         self.covarianzas = covarianzas
+        self.clases = clases 
 
         return self
+
+
+    def predict(self, x):
+        '''
+        Predice el valor de un nuevo punto.
+        Solo funciona para un punto, no para vectores de puntos.
+        '''
+        scores = np.zeros(len(self.centroides))
+
+        for i in range(len(scores)):
+            inv = np.linalg.inv(self.covarianzas[i])
+            m = self.centroides[i]
+            scores[i] = -0.5 * ((x-m) @ (inv @ (x-m))) -0.5*(np.log( np.linalg.det(self.covarianzas[i]) )) + np.log(self.pesos[i])
+
+        indice = np.argmax(scores)
+        
+        return self.clases[indice]
 
 
 def prueba_NC():
